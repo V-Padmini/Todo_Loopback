@@ -1,0 +1,7 @@
+{
+  "name": "oracle",
+  "connector": "oracle",
+  "user": "todo_user",
+  "password": "Todo123",
+  "connectString": "localhost:1522/ORCLPDB"
+}

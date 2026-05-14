@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+<body>
+  <div class="header">
+  <h1>Welcome, <span id="username"></span></h1>
+  <button id="logoutBtn">Logout</button>
+</div>
+  <div class="card" id="addTodoCard">
+    <h2>Add Todo</h2>
+    <form id="todoForm">
+      <input type="text" name="title" placeholder="Title" required />
+      <input type="text" name="description" placeholder="Description" />
+      <button type="submit">Add</button>
+    </form>
+  </div>
+
+  <div id="todosContainer"></div>
+
+  <script>
+    const username = localStorage.getItem('username');
+    if (!username) {
+      // If no username in localStorage, redirect to login
+      window.location.href = '/login.html'; // change to your login page path
+    }
+    document.getElementById('username').textContent = username;
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('username'); // clear username
+      window.location.href = '/login.html'; // redirect to login page
+    });
+
+    const todoForm = document.getElementById('todoForm');
+    const todosContainer = document.getElementById('todosContainer');
+
+    async function loadTodos() {
+      const res = await fetch(`/todos?username=${username}`);
+      const todos = await res.json();
+      todosContainer.innerHTML = '';
+      todos.forEach(todo => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${todo.title}</h3>
+          <p>${todo.description || ''}</p>
+          <p>Status: <strong>${todo.completed ? 'Completed' : 'Pending'}</strong></p>
+          <button class="completeBtn">${todo.completed ? 'Mark Pending' : 'Mark Completed'}</button>
+          <button class="deleteBtn">Delete</button>
+        `;
+        const completeBtn = card.querySelector('.completeBtn');
+        completeBtn.addEventListener('click', async () => {
+          await fetch(`/todos/${todo.id}`, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({completed: !todo.completed})
+          });
+          loadTodos();
+        });
+        const deleteBtn = card.querySelector('.deleteBtn');
+        deleteBtn.addEventListener('click', async () => {
+          await fetch(`/todos/${todo.id}`, {method:'DELETE'});
+          loadTodos();
+        });
+        todosContainer.appendChild(card);
+      });
+    }
+
+    todoForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      await fetch('/todos', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          title: todoForm.title.value,
+          description: todoForm.description.value,
+          username
+        })
+      });
+      todoForm.reset();
+      loadTodos();
+    });
+
+    loadTodos();
+  </script>
+</body>
+</html>
