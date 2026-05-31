@@ -38,7 +38,6 @@ export class AdminController {
     await this.checkAdmin(user);
     return this.userService.userRepo.find();
   }
-
   @del('/admin/users/{id}', {
     responses: {
       '200': {

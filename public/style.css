@@ -7,11 +7,12 @@ body {
   color: #333;
 }
 
-h1, h2, h3 {
+h1, h3 {
   margin: 0 0 10px 0;
   color: #222;
   font-weight: 600;
 }
+
 
 a {
   color: #0d6efd;
@@ -40,11 +41,11 @@ a:hover {
 
 /* 🌟 Header Logout Button */
 .header button {
-  width: auto;                 /* Let it shrink to content */
-  padding: 6px 14px;           /* Smaller padding */
-  font-size: 0.9rem;           /* Slightly smaller text */
-  border-radius: 6px;          /* Subtle rounded corners */
-  background: #dc3545;         /* Red for logout */
+  width: auto;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  background: #dc3545;
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -60,7 +61,7 @@ a:hover {
 .card {
   background: #fff;
   padding: 25px;
-  margin: 15px auto;
+  margin: 15px auto; /* keeps add-todo card centered */
   max-width: 500px;
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
@@ -118,7 +119,7 @@ button:hover {
   transform: translateY(-2px);
 }
 
-/* Smaller card action buttons */
+/* 🌟 Smaller card action buttons */
 .card button {
   width: 48%;
   margin: 5px 1%;
@@ -134,13 +135,27 @@ button:hover {
   font-size: 0.95rem;
 }
 
+/* 🌟 Todo Cards Layout (🔥 ONLY TODO CARDS) */
+#todosContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* Apply only to todo cards, not other cards */
+#todosContainer .card {
+  margin: 0;
+  width: 280px; /* adjust width to fit multiple cards in a row */
+}
+
 /* 🌟 Responsive */
 @media(max-width:600px) {
   .card {
-    width: 95%;
+    width: 100%; /* todo cards stack on mobile */
     padding: 18px;
   }
-  #todosContainer .card, #usersContainer .card {
+  #todosContainer .card {
     width: 100%;
   }
   .header {
@@ -151,3 +166,18 @@ button:hover {
     margin-top: 10px;
   }
 }
+#usersContainer,
+#todosContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+/* IMPORTANT: override global .card rule */
+#usersContainer .card,
+#todosContainer .card {
+  margin: 0 !important;
+  max-width: 280px !important;
+  width: 280px;
+}  
