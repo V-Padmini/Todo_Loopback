@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+  <div class="header">
+    <h1>Admin Dashboard</h1>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <h2>Users</h2>
+  <div id="usersContainer"></div>
+
+  <h2>All Todos</h2>
+  <div id="todosContainer"></div>
+</div>
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if(!token || role !== 'admin') window.location.href = 'dashboard.html';
+
+    document.getElementById('logoutBtn').onclick = () => {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    };
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/admin/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(!res.ok) throw new Error(`Status: ${res.status}`);
+        const users = await res.json();
+        const container = document.getElementById('usersContainer');
+        container.innerHTML = '';
+        users.forEach(u => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `<h3>${u.username} (${u.role})</h3>
+            <button class="deleteBtn">Delete User</button>`;
+          card.querySelector('.deleteBtn').onclick = async () => {
+            await fetch(`/admin/users/${u.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadUsers();
+          };
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        document.getElementById('usersContainer').innerHTML = `<p style="color:red">Failed to load users</p>`;
+      }
+    }
+
+    async function loadTodos() {
+      try {
+        const res = await fetch('/admin/todos', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(!res.ok) throw new Error(`Status: ${res.status}`);
+        const todos = await res.json();
+        const container = document.getElementById('todosContainer');
+        container.innerHTML = '';
+        todos.forEach(todo => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `<h3>${todo.title}</h3>
+            <p>${todo.description || ''}</p>
+            <p>Status: ${todo.completed ? 'Completed' : 'Pending'}</p>
+            <button class="deleteBtn">Delete Todo</button>`;
+          card.querySelector('.deleteBtn').onclick = async () => {
+            await fetch(`/admin/todos/${todo.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadTodos();
+          };
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        document.getElementById('todosContainer').innerHTML = `<p style="color:red">Failed to load todos</p>`;
+      }
+    }
+
+    loadUsers();
+    loadTodos();
+  </script>
+</body>
+</html>

@@ -1,27 +1,38 @@
 import {TodoAppApplication} from './application';
 import {ApplicationConfig} from '@loopback/core';
-import {RestServer} from '@loopback/rest';
 import open from 'open';
+import {createDefaultAdmin} from './services/default-admin';
+import {RestServer} from '@loopback/rest';
 
-export {TodoAppApplication};
-
-export async function main(options: ApplicationConfig = {}) {
-  const app = new TodoAppApplication(options);
+export async function main(
+  options: ApplicationConfig = {},
+) {
+  const app = new TodoAppApplication(
+    options,
+  );
 
   await app.boot();
-
-  // Auto-create tables
-  await app.migrateSchema({existingSchema: 'drop'});
-
   await app.start();
 
-  // Correct way to get REST server
- const restServer = await app.getServer(RestServer);
-const url = restServer.url?.replace('[::1]', '127.0.0.1') || 'http://127.0.0.1:3000';
-console.log(`✅ Server is running at ${url}`);
-console.log(`✅ OpenAPI Explorer at ${url}/explorer`);
+  await createDefaultAdmin(app);
 
-  // Optional: open browser
+  const restServer =
+    await app.getServer(RestServer);
+
+  // Replace IPv6 localhost with IPv4
+  const url =
+    restServer.url
+      ?.replace('[::1]', '127.0.0.1') ??
+    'http://127.0.0.1:3000';
+
+  console.log(
+    `✅ Server running at ${url}`,
+  );
+
+  console.log(
+    `✅ API Explorer at ${url}/explorer`,
+  );
+
   await open(`${url}/explorer`);
 
   return app;
@@ -29,7 +40,10 @@ console.log(`✅ OpenAPI Explorer at ${url}/explorer`);
 
 if (require.main === module) {
   main().catch(err => {
-    console.error('Cannot start application', err);
+    console.error(
+      'Cannot start application',
+      err,
+    );
     process.exit(1);
   });
 }

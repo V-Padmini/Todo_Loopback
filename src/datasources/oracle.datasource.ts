@@ -3,8 +3,5 @@ import config from './oracle.datasource.config.json';
 
 export class OracleDataSource extends juggler.DataSource {
   static dataSourceName = 'oracle';
-
-  constructor(dsConfig: object = config) {
-    super(dsConfig);
-  }
+  constructor() { super(config); }
 }

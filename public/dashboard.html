@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dashboard</title>
+  <title>Todo Dashboard</title>
   <link rel="stylesheet" href="style.css">
-  
 </head>
 <body>
   <div class="header">
-  <h1>Welcome, <span id="username"></span></h1>
-  <button id="logoutBtn">Logout</button>
-</div>
+    <h1>Welcome, <span id="username"></span></h1>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
   <div class="card" id="addTodoCard">
     <h2>Add Todo</h2>
     <form id="todoForm">
@@ -22,67 +22,102 @@
   <div id="todosContainer"></div>
 
   <script>
+    const token = localStorage.getItem('token');
     const username = localStorage.getItem('username');
-    if (!username) {
-      // If no username in localStorage, redirect to login
-      window.location.href = '/login.html'; // change to your login page path
-    }
+
+    if(!token || !username) window.location.href = 'login.html';
+
     document.getElementById('username').textContent = username;
 
+    // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('username'); // clear username
-      window.location.href = '/login.html'; // redirect to login page
+      localStorage.clear();
+      window.location.href = 'login.html';
     });
 
     const todoForm = document.getElementById('todoForm');
     const todosContainer = document.getElementById('todosContainer');
 
     async function loadTodos() {
-      const res = await fetch(`/todos?username=${username}`);
-      const todos = await res.json();
-      todosContainer.innerHTML = '';
-      todos.forEach(todo => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <h3>${todo.title}</h3>
-          <p>${todo.description || ''}</p>
-          <p>Status: <strong>${todo.completed ? 'Completed' : 'Pending'}</strong></p>
-          <button class="completeBtn">${todo.completed ? 'Mark Pending' : 'Mark Completed'}</button>
-          <button class="deleteBtn">Delete</button>
-        `;
-        const completeBtn = card.querySelector('.completeBtn');
-        completeBtn.addEventListener('click', async () => {
-          await fetch(`/todos/${todo.id}`, {
-            method:'PUT',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({completed: !todo.completed})
-          });
-          loadTodos();
+      try {
+        const res = await fetch('/todos', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        const deleteBtn = card.querySelector('.deleteBtn');
-        deleteBtn.addEventListener('click', async () => {
-          await fetch(`/todos/${todo.id}`, {method:'DELETE'});
-          loadTodos();
+
+        if(!res.ok) {
+          console.error('Error fetching todos', res.status);
+          todosContainer.innerHTML = `<p style="color:red">Failed to load todos. Status: ${res.status}</p>`;
+          return;
+        }
+
+        const todos = await res.json();
+        if(!Array.isArray(todos)) {
+          todosContainer.innerHTML = `<p>No todos found</p>`;
+          return;
+        }
+
+        todosContainer.innerHTML = '';
+        todos.forEach(todo => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h3>${todo.title}</h3>
+            <p>${todo.description || ''}</p>
+            <p>Status: <strong>${todo.completed ? 'Completed' : 'Pending'}</strong></p>
+            <button class="completeBtn">${todo.completed ? 'Mark Pending' : 'Mark Completed'}</button>
+            <button class="deleteBtn">Delete</button>
+          `;
+          // Toggle status
+          card.querySelector('.completeBtn').onclick = async () => {
+            await fetch(`/todos/${todo.id}/status`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            loadTodos();
+          };
+          // Delete todo
+          card.querySelector('.deleteBtn').onclick = async () => {
+            await fetch(`/todos/${todo.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadTodos();
+          };
+          todosContainer.appendChild(card);
         });
-        todosContainer.appendChild(card);
-      });
+      } catch (err) {
+        console.error(err);
+        todosContainer.innerHTML = `<p style="color:red">Error loading todos</p>`;
+      }
     }
 
     todoForm.addEventListener('submit', async e => {
       e.preventDefault();
-      await fetch('/todos', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          title: todoForm.title.value,
-          description: todoForm.description.value,
-          username
-        })
-      });
-      todoForm.reset();
-      loadTodos();
+      try {
+        await fetch('/todos', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: todoForm.title.value,
+            description: todoForm.description.value
+          })
+        });
+        todoForm.reset();
+        loadTodos();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to add todo');
+      }
     });
 
     loadTodos();

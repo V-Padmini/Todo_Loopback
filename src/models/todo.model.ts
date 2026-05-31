@@ -1,23 +1,28 @@
 import {Entity, model, property} from '@loopback/repository';
 
-@model({settings: {oracle: {table: 'TODOS'}}})
+@model({settings:{oracle:{table:'TODOS'}}})
 export class Todo extends Entity {
-  @property({type: 'number', id: true, generated: true})
+  @property({type:'number', id:true, generated:true})
   id?: number;
 
-  @property({type: 'string', required: true})
+  @property({
+    type:'string',
+    required:true,
+    jsonSchema: { minLength: 3, maxLength: 100 }
+  })
   title!: string;
 
-  @property({type: 'string'})
+  @property({
+    type:'string',
+    jsonSchema: { maxLength: 255 }
+  })
   description?: string;
 
-  @property({type: 'boolean', default: false})
+  @property({type:'boolean', default:false})
   completed?: boolean;
 
-  @property({type: 'string', required: true})
-  username!: string; // store owner
+  @property({type:'number'})
+  userId?: number;
 
-  constructor(data?: Partial<Todo>) {
-    super(data);
-  }
+  constructor(data?: Partial<Todo>){ super(data); }
 }
