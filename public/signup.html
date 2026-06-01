@@ -16,36 +16,46 @@
   </form>
   <p class="bottom-link">Already have an account? <a href="login.html">Login here</a></p>
 </div>
-
 <script>
 const form = document.getElementById('signupForm');
 
-form.addEventListener('submit', async e=>{
+form.addEventListener('submit', async e => {
   e.preventDefault();
 
-  if(form.password.value !== form.confirmPassword.value){
+  // frontend validation
+  if (form.password.value !== form.confirmPassword.value) {
     alert('Passwords do not match');
     return;
   }
 
-  const res = await fetch('/signup', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      username: form.username.value,
-      password: form.password.value
-    })
-  });
+  try {
+    const res = await fetch('/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: form.username.value,
+        password: form.password.value,
+        confirmPassword: form.confirmPassword.value // ✅ FIX
+      })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if(data.id){ // successfully created
-    alert('Signup successful! You will be redirected to login.');
-    window.location.href = 'login.html';
-  } else {
-    alert(data.message || 'Signup failed');
+    if (res.ok && data.id) {
+      alert('Signup successful!');
+      window.location.href = 'login.html';
+    } else {
+      alert(data.message || 'Signup failed');
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Something went wrong');
   }
 });
 </script>
+
 </body>
 </html>

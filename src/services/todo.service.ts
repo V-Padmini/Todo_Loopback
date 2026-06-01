@@ -1,5 +1,6 @@
 import {injectable, inject} from '@loopback/core';
 import {repository, Where} from '@loopback/repository';
+import {HttpErrors} from '@loopback/rest';
 import {TodoRepository} from '../repositories/todo.repository';
 import {Todo} from '../models/todo.model';
 import {OracleDataSource} from '../datasources/oracle.datasource';
@@ -20,73 +21,48 @@ export class TodoService {
     todo: Partial<Todo>,
   ) {
     return this.todoRepo.create({
-      ...todo,
+      title: todo.title,
+      description: todo.description,
+      completed: false,
       userId,
     });
   }
 
-  // ================= SIMPLE SEARCH =================
+  // ================= GET TODOS + FILTER =================
   async searchTodos(
     userId: number,
-    keyword: string,
+    keyword?: string,
+    completed?: boolean,
   ) {
     const where: Where<Todo> = {
-      userId,
+      and: [
+        {userId},
 
-      or: [
-        {
-          title: {
-            like: `%${keyword}%`,
-          },
-        },
-        {
-          description: {
-            like: `%${keyword}%`,
-          },
-        },
+        completed !== undefined
+          ? {completed}
+          : {},
+
+        keyword
+          ? {
+              or: [
+                {
+                  title: {
+                    like: `%${keyword}%`,
+                  },
+                },
+                {
+                  description: {
+                    like: `%${keyword}%`,
+                  },
+                },
+              ],
+            }
+          : {},
       ],
     };
 
     return this.todoRepo.find({
       where,
-      order: ['id DESC'],
-    });
-  }
-
-  // ================= ADVANCED SEARCH =================
-  async advancedSearchTodos(
-    userId: number,
-    keyword?: string,
-    completed?: boolean,
-  ) {
-    return this.todoRepo.find({
-      where: {
-        and: [
-          {userId},
-
-          completed !== undefined
-            ? {completed}
-            : {},
-
-          keyword
-            ? {
-                or: [
-                  {
-                    title: {
-                      like: `%${keyword}%`,
-                    },
-                  },
-                  {
-                    description: {
-                      like: `%${keyword}%`,
-                    },
-                  },
-                ],
-              }
-            : {},
-        ],
-      },
-
       order: ['id DESC'],
     });
   }
@@ -99,27 +75,9 @@ export class TodoService {
   ) {
     return this.todoRepo.find({
       where: {userId},
-
-      limit,
-
-      skip: (page - 1) * limit,
-
       order: ['id DESC'],
-    });
-  }
-
-  // ================= SORT TODOS =================
-  async sortTodos(
-    userId: number,
-    field = 'id',
-    direction = 'DESC',
-  ) {
-    return this.todoRepo.find({
-      where: {userId},
-
-      order: [
-        `${field} ${direction}`,
-      ],
+      limit,
+      skip: (page - 1) * limit,
     });
   }
 
@@ -151,6 +109,34 @@ export class TodoService {
     };
   }
 
+  // ================= UPDATE TODO =================
+  async updateTodo(
+    userId: number,
+    id: number,
+    updatedData: Partial<Todo>,
+  ) {
+    const todo =
+      await this.todoRepo.findById(
+        id,
+      );
+
+    // only owner can edit
+    if (todo.userId !== userId) {
+      throw new HttpErrors.Forbidden(
+        'Not authorized',
+      );
+    }
+
+    await this.todoRepo.updateById(
+      id,
+      updatedData,
+    );
+
+    return this.todoRepo.findById(
+      id,
+    );
+  }
+
   // ================= TOGGLE STATUS =================
   async toggleStatus(
     userId: number,
@@ -161,8 +147,9 @@ export class TodoService {
         id,
       );
 
+    // only owner
     if (todo.userId !== userId) {
-      throw new Error(
+      throw new HttpErrors.Forbidden(
         'Not authorized',
       );
     }
@@ -190,80 +177,52 @@ export class TodoService {
         id,
       );
 
+    // only owner
     if (todo.userId !== userId) {
-      throw new Error(
+      throw new HttpErrors.Forbidden(
         'Not authorized',
       );
     }
 
-    return this.todoRepo.deleteById(
+    await this.todoRepo.deleteById(
       id,
+    );
+
+    return {
+      message:
+        'Todo deleted successfully',
+    };
+  }
+
+  // ================= ADMIN: TOP USERS =================
+  async topUsers() {
+    const query = `
+      SELECT USERID AS "userId",
+             COUNT(*) AS "totalTodos"
+      FROM TODOS
+      GROUP BY USERID
+      ORDER BY COUNT(*) DESC
+    `;
+
+    return this.dataSource.execute(
+      query,
     );
   }
 
-  // ================= RAW SQL QUERY =================
-  // Top users by todo count
-  async topUsers() {
-    return this.dataSource.execute(`
-      SELECT
-        USER_ID,
-        COUNT(*) AS TOTAL_TODOS
-      FROM TODOS
-      GROUP BY USER_ID
-      ORDER BY TOTAL_TODOS DESC
-    `);
-  }
-
-  // ================= JOIN + GROUP BY =================
-  // Admin analytics
+  // ================= ADMIN ANALYTICS =================
   async adminAnalytics() {
-    return this.dataSource.execute(`
-      SELECT
-        U.USERNAME,
-        COUNT(T.ID) AS TOTAL_TODOS
+    const query = `
+      SELECT U.USERNAME AS "username",
+             COUNT(T.ID) AS "totalTodos"
       FROM USERS U
       LEFT JOIN TODOS T
-      ON U.ID = T.USER_ID
+        ON U.ID = T.USERID
       GROUP BY U.USERNAME
-      ORDER BY TOTAL_TODOS DESC
-    `);
-  }
+      ORDER BY COUNT(T.ID) DESC
+    `;
 
-  // ================= COMPLEX MULTI-CONDITION =================
-  async complexFilter(
-    userId: number,
-    keyword?: string,
-    completed?: boolean,
-  ) {
-    return this.todoRepo.find({
-      where: {
-        and: [
-          {userId},
-
-          completed !== undefined
-            ? {completed}
-            : {},
-
-          keyword
-            ? {
-                or: [
-                  {
-                    title: {
-                      like: `%${keyword}%`,
-                    },
-                  },
-                  {
-                    description: {
-                      like: `%${keyword}%`,
-                    },
-                  },
-                ],
-              }
-            : {},
-        ],
-      },
-
-      order: ['id DESC'],
-    });
+    return this.dataSource.execute(
+      query,
+    );
   }
 }

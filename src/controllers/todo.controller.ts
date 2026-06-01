@@ -6,13 +6,17 @@ import {
   param,
   requestBody,
 } from '@loopback/rest';
+
 import {inject} from '@loopback/core';
-import {TodoService} from '../services/todo.service';
+
 import {authenticate} from '@loopback/authentication';
+
 import {
   UserProfile,
   securityId,
 } from '@loopback/security';
+
+import {TodoService} from '../services/todo.service';
 
 @authenticate('jwt')
 export class TodoController {
@@ -22,13 +26,20 @@ export class TodoController {
   ) {}
 
   // ================= CREATE TODO =================
-  @post('/todos')
-  async create(
+  @post('/todos', {
+    responses: {
+      '200': {
+        description:
+          'Create a new todo',
+      },
+    },
+  })
+  async createTodo(
     @inject('authentication.currentUser')
     currentUser: UserProfile,
 
     @requestBody({
-      description: 'Create Todo',
+      description: 'Todo details',
       required: true,
       content: {
         'application/json': {
@@ -38,19 +49,23 @@ export class TodoController {
             properties: {
               title: {
                 type: 'string',
-                example: 'Learn LoopBack',
+                example: 'Workout',
+                description:
+                  'Enter todo title',
               },
               description: {
                 type: 'string',
                 example:
-                  'Complete JWT authentication',
+                  'Go to gym at 6 PM',
+                description:
+                  'Enter todo description',
               },
             },
           },
         },
       },
     })
-    todo: {
+    body: {
       title: string;
       description?: string;
     },
@@ -61,77 +76,84 @@ export class TodoController {
 
     return this.todoService.createTodo(
       userId,
-      todo,
+      body,
     );
   }
 
-  // ================= SIMPLE SEARCH =================
-  @get('/todos')
-  async findTodos(
-    @inject('authentication.currentUser')
-    currentUser: UserProfile,
-
-    @param.query.string('keyword', {
-      description: 'Search keyword',
-      example: 'learn',
-    })
-    keyword?: string,
-  ) {
-    const userId = Number(
-      currentUser[securityId],
-    );
-
-    return this.todoService.searchTodos(
-      userId,
-      keyword || '',
-    );
-  }
-
-  // ================= ADVANCED SEARCH =================
-  @get('/todos/filter')
-  async advancedFind(
-    @inject('authentication.currentUser')
-    currentUser: UserProfile,
-
-    @param.query.string('keyword', {
-      description: 'Search keyword',
-      example: 'java',
-    })
-    keyword?: string,
-
-    @param.query.boolean('completed', {
+  // ================= GET TODOS + FILTER =================
+  @get('/todos', {
+  responses: {
+    '200': {
       description:
-        'Filter by completed status',
+        'Get logged in user todos',
+    },
+  },
+})
+async getTodos(
+  @inject('authentication.currentUser')
+  currentUser: UserProfile,
+
+  @param.query.string(
+    'keyword',
+    {
+      description:
+        'Search keyword',
+      example: 'study',
+    },
+  )
+  keyword?: string,
+
+  @param.query.boolean(
+    'completed',
+    {
+      description:
+        'Completed status',
       example: true,
-    })
-    completed?: boolean,
-  ) {
-    const userId = Number(
-      currentUser[securityId],
-    );
+    },
+  )
+  completed?: boolean,
+) {
+  const userId = Number(
+    currentUser[securityId],
+  );
 
-    return this.todoService
-      .advancedSearchTodos(
-        userId,
-        keyword,
-        completed,
-      );
-  }
-
+  return this.todoService.searchTodos(
+    userId,
+    keyword,
+    completed,
+  );
+}
   // ================= PAGINATION =================
-  @get('/todos/pagination')
+  @get('/todos/pagination', {
+    responses: {
+      '200': {
+        description:
+          'Get paginated todos',
+      },
+    },
+  })
   async pagination(
     @inject('authentication.currentUser')
     currentUser: UserProfile,
 
-    @param.query.number('page', {
-      example: 1,
-    })
+    @param.query.number(
+      'page',
+      {
+        description:
+          'Page number',
+        example: 1,
+      },
+    )
     page = 1,
 
-    @param.query.number('limit', {
-      example: 5,
-    })
+    @param.query.number(
+      'limit',
+      {
+        description:
+          'Number of todos per page',
+        example: 5,
+      },
+    )
     limit = 5,
   ) {
     const userId = Number(
@@ -146,8 +168,15 @@ export class TodoController {
       );
   }
 
-  // ================= STATS =================
-  @get('/todos/stats')
+  // ================= TODO STATS =================
+  @get('/todos/stats', {
+    responses: {
+      '200': {
+        description:
+          'Get todo statistics',
+      },
+    },
+  })
   async stats(
     @inject('authentication.currentUser')
     currentUser: UserProfile,
@@ -156,56 +185,108 @@ export class TodoController {
       currentUser[securityId],
     );
 
-    return this.todoService
-      .getTodoStats(userId);
-  }
-
-  // ================= TOGGLE STATUS =================
-  @put('/todos/{id}/status')
-  async toggleStatus(
-    @inject('authentication.currentUser')
-    currentUser: UserProfile,
-
-    @param.path.number('id', {
-      description: 'Todo ID',
-      example: 1,
-    })
-    id: number,
-  ) {
-    const userId = Number(
-      currentUser[securityId],
-    );
-
-    return this.todoService.toggleStatus(
+    return this.todoService.getTodoStats(
       userId,
-      id,
     );
   }
 
+  // ================= UPDATE TODO =================
+@put('/todos/{id}', {
+  responses: {
+    '200': {
+      description:
+        'Update todo',
+    },
+  },
+})
+async updateTodo(
+  @inject('authentication.currentUser')
+  currentUser: UserProfile,
+
+  @param.path.number(
+    'id',
+    {
+      description:
+        'Todo ID',
+      example: 1,
+    },
+  )
+  id: number,
+
+  @requestBody({
+    description:
+      'Updated todo details',
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              example:
+                'Workout Updated',
+            },
+            description: {
+              type: 'string',
+              example:
+                'Go to gym at 7 PM',
+            },
+            completed: {
+              type: 'boolean',
+              example: true,
+            },
+          },
+        },
+      },
+    },
+  })
+  body: {
+    title?: string;
+    description?: string;
+    completed?: boolean;
+  },
+) {
+  const userId = Number(
+    currentUser[securityId],
+  );
+
+  return this.todoService.updateTodo(
+    userId,
+    id,
+    body,
+  );
+}
   // ================= DELETE TODO =================
-  @del('/todos/{id}')
-  async delete(
+  @del('/todos/{id}', {
+    responses: {
+      '200': {
+        description:
+          'Delete todo',
+      },
+    },
+  })
+  async deleteTodo(
     @inject('authentication.currentUser')
     currentUser: UserProfile,
 
-    @param.path.number('id', {
-      description: 'Todo ID',
-      example: 1,
-    })
+    @param.path.number(
+      'id',
+      {
+        description:
+          'Todo ID',
+        example: 1,
+      },
+    )
     id: number,
   ) {
     const userId = Number(
       currentUser[securityId],
     );
 
-    await this.todoService.deleteTodo(
+    return this.todoService.deleteTodo(
       userId,
       id,
     );
-
-    return {
-      message:
-        `Todo ${id} deleted successfully`,
-    };
   }
 }
